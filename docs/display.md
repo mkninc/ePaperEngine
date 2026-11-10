@@ -69,3 +69,8 @@ The EM32DX runs on mains or on its internal battery. The MAC address field
 exists so a sleeping panel can be woken with a magic packet before a push.
 **Whether wake-on-LAN reaches it reliably over WiFi is untested** — on mains
 power the question does not arise.
+
+The battery level and whether the charger is connected are available as
+`sensor.epaperengine_battery` and `binary_sensor.epaperengine_charger_connected`.
+With the charger on a smart plug that is enough to keep the battery away from a
+permanent 100 %; the example is under [Automations](automationen.md).

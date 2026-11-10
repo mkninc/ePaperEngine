@@ -1,6 +1,6 @@
-"""Reachability of the display (FSD §3.1).
+"""Reachability of the display, and whether its charger is connected (FSD §3.1).
 
-One entity, and it means something narrow: **the panel answered an MDC command**.
+``display_reachable`` means something narrow: **the panel answered an MDC command**.
 Not "port 1515 is open" — that would report a display with a wrong PIN as
 reachable, which is the one failure worth catching [Festlegung 2026-08-21]. The
 measurement happens in the add-on (``probe.mjs``), because only it has the Node
@@ -9,6 +9,9 @@ protocol layer; the integration asks it over ``GET /display``.
 It is deliberately **not** on the Lovelace card in the normal case [Festlegung
 2026-08-20]: a dot that is always green carries no information. Only the fault
 reports itself.
+
+``charger_connected`` is read from the same probe; see
+:class:`ChargerConnectedSensor`.
 """
 
 from __future__ import annotations
@@ -23,6 +26,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
+from .battery import charger_connected
 from .const import DOMAIN
 from .coordinator import EPaperEngineCoordinator
 from .entity import EPaperEngineEntity
@@ -33,7 +37,9 @@ async def async_setup_entry(
 ) -> None:
     """Set up the ePaperEngine binary sensors."""
     coordinator: EPaperEngineCoordinator = hass.data[DOMAIN][entry.entry_id]
-    async_add_entities([DisplayReachableSensor(coordinator)])
+    async_add_entities(
+        [DisplayReachableSensor(coordinator), ChargerConnectedSensor(coordinator)]
+    )
 
 
 class DisplayReachableSensor(EPaperEngineEntity, BinarySensorEntity):
@@ -76,3 +82,29 @@ class DisplayReachableSensor(EPaperEngineEntity, BinarySensorEntity):
             "checked_at": display.get("at"),
             "error": display.get("error"),
         }
+
+
+class ChargerConnectedSensor(EPaperEngineEntity, BinarySensorEntity):
+    """Is the charger plugged into the panel.
+
+    Device class ``plug``, not ``battery_charging``: the panel reports that the
+    charger is *connected*, and a full battery on mains is connected without
+    charging.
+
+    With the charger on a smart plug this is the confirmation that switching
+    the plug actually reached the panel. ``unavailable`` whenever the last
+    probe did not say — see ``battery.py``.
+    """
+
+    _attr_device_class = BinarySensorDeviceClass.PLUG
+
+    def __init__(self, coordinator: EPaperEngineCoordinator) -> None:
+        super().__init__(coordinator, "charger_connected")
+
+    @property
+    def available(self) -> bool:
+        return charger_connected(self.coordinator.display) is not None
+
+    @property
+    def is_on(self) -> bool | None:
+        return charger_connected(self.coordinator.display)

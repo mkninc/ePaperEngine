@@ -38,11 +38,17 @@
       },
       "recipe_cache": {
         "name": "Rezept-Cache"
+      },
+      "battery": {
+        "name": "Akku"
       }
     },
     "binary_sensor": {
       "display_reachable": {
         "name": "Display erreichbar"
+      },
+      "charger_connected": {
+        "name": "Ladegerät angeschlossen"
       }
     },
     "button": {

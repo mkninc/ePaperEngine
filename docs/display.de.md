@@ -75,3 +75,8 @@ Das EM32DX läuft am Netz oder auf seinem eingebauten Akku. Das MAC-Feld gibt es
 damit ein schlafendes Panel vor einem Push mit einem Magic Packet geweckt werden
 kann. **Ob Wake-on-LAN es über WiFi zuverlässig erreicht, ist ungeprüft** — am
 Netzstrom stellt sich die Frage nicht.
+
+Akkustand und angeschlossenes Ladegerät stehen als `sensor.epaperengine_battery`
+und `binary_sensor.epaperengine_charger_connected` zur Verfügung. Mit dem
+Ladegerät an einer smarten Steckdose reicht das, um den Akku von dauerhaften
+100 % fernzuhalten; das Beispiel steht unter [Automationen](automationen.md).

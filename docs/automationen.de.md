@@ -13,7 +13,9 @@ gewählt wurde und wann zuletzt gesendet wurde, und trägt die Chips zum Wechsel
 | `sensor.epaperengine_status` | `idle` · `pushed` · `unchanged` · `push_failed` · `push_off` · `render_failed` |
 | `sensor.epaperengine_target_view` | `calendar` · `recipes` · `photos` · `guests` · `error` |
 | `sensor.epaperengine_recipe_cache` | Anzahl der zwischengespeicherten Rezepte |
+| `sensor.epaperengine_battery` | Akkustand in %, aus der letzten MDC-Abfrage |
 | `binary_sensor.epaperengine_display_reachable` | die letzte MDC-Abfrage |
+| `binary_sensor.epaperengine_charger_connected` | Ladegerät angeschlossen, aus der letzten MDC-Abfrage |
 | `button.epaperengine_refresh` | jetzt rendern und senden |
 
 !!! note "`unchanged` ist kein Fehler"
@@ -22,6 +24,16 @@ gewählt wurde und wann zuletzt gesendet wurde, und trägt die Chips zum Wechsel
 
 `binary_sensor.epaperengine_display_reachable` ist kein Ping und keine
 Portprüfung — dahinter steht ein echtes MDC-Gespräch mit dem Panel, samt PIN.
+
+Die beiden Akku-Entitäten sind `unavailable`, sobald die letzte Abfrage keinen
+Wert geliefert hat. Einen alten Wert wiederholen sie nie.
+
+!!! note "Entitäts-IDs folgen der Sprache"
+    Home Assistant leitet die ID einer Entität aus ihrem Namen ab, wenn sie zum
+    ersten Mal angelegt wird. Auf dieser Seite stehen die englischen IDs; eine
+    auf Deutsch eingestellte Installation bekommt
+    `binary_sensor.epaperengine_display_erreichbar` und so weiter. Welche es
+    bei dir sind, steht auf der Geräteseite.
 
 ## Dienste
 
@@ -203,6 +215,47 @@ automation:
         data:
           message: Das E-Paper-Panel hat seit einer Stunde nicht geantwortet.
 ```
+
+**Den Akku zwischen 30 und 70 % halten**
+
+Solange das Ladegerät steckt, hält das Panel seinen Akku auf 100 %. Hängt das
+Ladegerät an einer smarten Steckdose (hier `switch.epaper_charger`), wird nur
+bei Bedarf geladen:
+
+```yaml
+automation:
+  - alias: Wand laden
+    triggers:
+      - trigger: numeric_state
+        entity_id: sensor.epaperengine_battery
+        below: 30
+      - trigger: state
+        entity_id: sensor.epaperengine_battery
+        to: unavailable
+        for: "01:00:00"
+    actions:
+      - action: switch.turn_on
+        target:
+          entity_id: switch.epaper_charger
+  - alias: Wand nicht weiter laden
+    triggers:
+      - trigger: numeric_state
+        entity_id: sensor.epaperengine_battery
+        above: 70
+    actions:
+      - action: switch.turn_off
+        target:
+          entity_id: switch.epaper_charger
+```
+
+Der zweite Auslöser der ersten Automation ist das Sicherheitsnetz: Ein Panel,
+das nicht mehr antwortet, meldet keinen Stand — „unter 30“ kann für es nie
+auslösen. Nach einer Stunde ohne Wert geht das Ladegerät deshalb in jedem Fall
+an.
+
+Der Stand wird alle 15 Minuten gelesen; die Schwellen werden also etwas später
+erreicht als eingestellt. `binary_sensor.epaperengine_charger_connected` zeigt,
+ob das Schalten der Steckdose beim Panel angekommen ist.
 
 ## Berechtigungen
 

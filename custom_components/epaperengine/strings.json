@@ -38,11 +38,17 @@
       },
       "recipe_cache": {
         "name": "Recipe cache"
+      },
+      "battery": {
+        "name": "Battery"
       }
     },
     "binary_sensor": {
       "display_reachable": {
         "name": "Display reachable"
+      },
+      "charger_connected": {
+        "name": "Charger connected"
       }
     },
     "button": {

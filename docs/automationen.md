@@ -13,7 +13,9 @@ and when the last push happened, and carries the chips for switching it — see
 | `sensor.epaperengine_status` | `idle` · `pushed` · `unchanged` · `push_failed` · `push_off` · `render_failed` |
 | `sensor.epaperengine_target_view` | `calendar` · `recipes` · `photos` · `guests` · `error` |
 | `sensor.epaperengine_recipe_cache` | number of cached recipes |
+| `sensor.epaperengine_battery` | battery level in %, from the last MDC probe |
 | `binary_sensor.epaperengine_display_reachable` | the last MDC probe |
+| `binary_sensor.epaperengine_charger_connected` | charger plugged in, from the last MDC probe |
 | `button.epaperengine_refresh` | run and push now |
 
 !!! note "`unchanged` is not a failure"
@@ -22,6 +24,15 @@ and when the last push happened, and carries the chips for switching it — see
 
 `binary_sensor.epaperengine_display_reachable` is not a ping and not a port
 check — it reflects a real MDC conversation with the panel, PIN and all.
+
+The two battery entities are `unavailable` whenever the last probe gave no
+reading. They never repeat an old value.
+
+!!! note "Entity IDs follow the language"
+    Home Assistant derives an entity ID from the entity's name when it is first
+    created. The IDs on this page are the English ones; an installation set to
+    German gets `binary_sensor.epaperengine_display_erreichbar` and so on. The
+    ones you have are listed on the device page.
 
 ## Services
 
@@ -198,6 +209,46 @@ automation:
         data:
           message: The e-paper panel has not answered for an hour.
 ```
+
+**Keep the battery between 30 and 70 %**
+
+The panel holds its battery at 100 % for as long as the charger is connected.
+With the charger on a smart plug (`switch.epaper_charger` here) it charges only
+when it needs to:
+
+```yaml
+automation:
+  - alias: Charge the wall
+    triggers:
+      - trigger: numeric_state
+        entity_id: sensor.epaperengine_battery
+        below: 30
+      - trigger: state
+        entity_id: sensor.epaperengine_battery
+        to: unavailable
+        for: "01:00:00"
+    actions:
+      - action: switch.turn_on
+        target:
+          entity_id: switch.epaper_charger
+  - alias: Stop charging the wall
+    triggers:
+      - trigger: numeric_state
+        entity_id: sensor.epaperengine_battery
+        above: 70
+    actions:
+      - action: switch.turn_off
+        target:
+          entity_id: switch.epaper_charger
+```
+
+The second trigger of the first automation is the safety net: a panel that has
+stopped answering reports no level, so "below 30" can never fire for it. After
+an hour without a reading the charger goes on regardless.
+
+The level is read every 15 minutes, so the thresholds are met late rather than
+exactly. `binary_sensor.epaperengine_charger_connected` shows whether switching
+the plug reached the panel.
 
 ## Permissions
 

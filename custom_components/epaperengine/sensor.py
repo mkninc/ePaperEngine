@@ -1,8 +1,8 @@
 """Sensors for ePaperEngine (FSD §3.1).
 
-Four of them: which view *should* be on the wall and why, what the last run did,
-when the wall last actually changed, and when the recipe cache last spoke to
-Paprika.
+Five of them: which view *should* be on the wall and why, what the last run did,
+when the wall last actually changed, when the recipe cache last spoke to
+Paprika, and how full the panel's battery is.
 """
 
 from __future__ import annotations
@@ -13,12 +13,15 @@ from typing import Any
 from homeassistant.components.sensor import (
     SensorDeviceClass,
     SensorEntity,
+    SensorStateClass,
 )
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import PERCENTAGE
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.util import dt as dt_util
 
+from .battery import battery_percent
 from .const import DOMAIN, RUN_RESULTS, VIEWS
 from .coordinator import EPaperEngineCoordinator
 from .entity import EPaperEngineEntity
@@ -35,6 +38,7 @@ async def async_setup_entry(
             StatusSensor(coordinator),
             LastPushSensor(coordinator),
             RecipeCacheSensor(coordinator),
+            BatterySensor(coordinator),
         ]
     )
 
@@ -172,3 +176,34 @@ class RecipeCacheSensor(EPaperEngineEntity, SensorEntity):
             "selected": len(self.coordinator.config["recipes"].get("selection") or []),
             "error": status["error"],
         }
+
+
+class BatterySensor(EPaperEngineEntity, SensorEntity):
+    """Charge level of the panel's battery, in percent.
+
+    It comes out of the MDC probe that already feeds ``display_reachable``, so
+    it costs no extra connection — and the probe never wakes the panel, so
+    reading the battery does not drain it.
+
+    A state rather than only the ``battery_percent`` attribute of the
+    reachability sensor, because a ``numeric_state`` trigger needs one: the use
+    is a charger on a smart plug that stops short of 100 %.
+
+    ``unavailable`` whenever the last probe gave no reading; see ``battery.py``
+    for why an old value is never repeated.
+    """
+
+    _attr_device_class = SensorDeviceClass.BATTERY
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_native_unit_of_measurement = PERCENTAGE
+
+    def __init__(self, coordinator: EPaperEngineCoordinator) -> None:
+        super().__init__(coordinator, "battery")
+
+    @property
+    def available(self) -> bool:
+        return battery_percent(self.coordinator.display) is not None
+
+    @property
+    def native_value(self) -> int | None:
+        return battery_percent(self.coordinator.display)
